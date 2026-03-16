@@ -5,6 +5,7 @@ dist
 # Environnement
 .env
 .env.*
+.vscode
 
 # Tests and coverage
 coverage

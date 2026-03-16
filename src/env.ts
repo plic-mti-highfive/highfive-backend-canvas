@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import * as dotenv from 'dotenv'
-import { de } from 'zod/v4/locales'
 
 dotenv.config()
 
