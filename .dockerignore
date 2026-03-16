@@ -1,0 +1,24 @@
+# Build files
+node_modules
+dist
+
+# Environnement
+.env
+.env.*
+
+# Tests and coverage
+coverage
+junit.xml
+tests
+
+# Git
+.git
+.github
+
+# Documentation
+README.md
+CHANGELOG.md
+
+# Docker
+docker-compose.yml
+minio
