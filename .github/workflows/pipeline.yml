@@ -54,6 +54,9 @@ jobs:
 
       - name: Generate coverage report
         run: npx vitest run --coverage
+        env:
+          ENV: dev
+          JWT_SECRET: secret-de-test
 
       - name: Upload coverage as artifact
         uses: actions/upload-artifact@v4
