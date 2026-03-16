@@ -143,5 +143,11 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+# Vite Test files
+vitest.config.js.timestamp-*
+vitest.config.ts.timestamp-*
+.vitest/
+junit.xml
+
 # Ignore minio data
 minio/data/
