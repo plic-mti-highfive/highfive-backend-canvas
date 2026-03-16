@@ -40,6 +40,9 @@ jobs:
 
       - name: Run tests and generate JUnit report
         run: npx vitest run --reporter=default --reporter=junit --outputFile=junit.xml
+        env:
+          ENV: dev
+          JWT_SECRET: secret-de-test
 
       - name: Publish Test Report
         uses: dorny/test-reporter@v1

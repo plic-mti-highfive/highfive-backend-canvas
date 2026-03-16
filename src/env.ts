@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import * as dotenv from 'dotenv'
+import { de } from 'zod/v4/locales'
 
 dotenv.config()
 
@@ -8,9 +9,9 @@ const devSchema = z.object({
   SERVER_NAME: z.string().default('hocuspocus-server'),
   PORT: z.coerce.number().default(8585),
   BUCKET_NAME: z.string().default('hocuspocus-bucket-dev'),
-  MINIO_ENDPOINT: z.string(),
-  MINIO_USERNAME: z.string(),
-  MINIO_PASSWORD: z.string(),
+  MINIO_ENDPOINT: z.string().default('http://localhost:9000'),
+  MINIO_USERNAME: z.string().default('minioadmin'),
+  MINIO_PASSWORD: z.string().default('minioadmin'),
   JWT_SECRET: z.string(),
 })
 
