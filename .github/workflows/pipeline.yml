@@ -21,6 +21,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      packages: read
 
     steps:
       - name: Checkout repository
@@ -36,9 +37,13 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@plic-mti-highfive'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run linter
         run: pnpm lint
@@ -130,3 +135,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}

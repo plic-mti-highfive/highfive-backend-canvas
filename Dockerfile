@@ -9,10 +9,13 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=secret,id=github_token \
+    echo "@plic-mti-highfive:registry=https://npm.pkg.github.com/" > .npmrc && \
+    echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc && \
+    pnpm install --frozen-lockfile && \
+    rm .npmrc
 
 COPY . .
-
 RUN pnpm build
 
 # ================
@@ -26,7 +29,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
+
+RUN --mount=type=secret,id=github_token \
+    echo "@plic-mti-highfive:registry=https://npm.pkg.github.com/" > .npmrc && \
+    echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc && \
+    pnpm install --prod --frozen-lockfile && \
+    rm .npmrc
 
 COPY --from=builder /app/dist ./dist
 
