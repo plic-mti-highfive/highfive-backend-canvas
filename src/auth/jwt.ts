@@ -1,13 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { env } from '../env'
-
-// specific canvas token paylod
-export interface CanvasTokenPayload {
-  userId: string
-  tenantId: string
-  projectId: string
-  role: 'admin' | 'editor' | 'viewer'
-}
+import { CanvasTokenPayload } from '@plic-mti-highfive/shared-types'
 
 export const verifyCanvasToken = (token: string, expectedProjectId: string): CanvasTokenPayload => {
   try {

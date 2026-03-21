@@ -25,6 +25,7 @@
     "@hocuspocus/extension-s3": "^3.4.4",
     "@hocuspocus/provider": "^3.4.4",
     "@hocuspocus/server": "^3.4.4",
+    "@plic-mti-highfive/shared-types": "1.0.0",
     "dotenv": "^17.3.1",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.19.0",

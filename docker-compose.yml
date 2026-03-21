@@ -1,7 +1,8 @@
 services:
   minio:
     image: quay.io/minio/minio
-    container_name: minio
+    container_name: highfive_minio
+    restart: unless-stopped
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -18,7 +19,8 @@ services:
       retries: 5
 
   backend_canvas:
-    container_name: backend_canvas
+    container_name: highfive_backend_canvas
+    restart: unless-stopped
     build: .
     ports:
       - '8585:8585'
