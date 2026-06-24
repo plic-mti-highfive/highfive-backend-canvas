@@ -20,6 +20,7 @@ export const startServer = async () => {
     // onFunction
     onAuthenticate: hooks.onAuthenticate,
     onDisconnect: hooks.onDisconnect,
+    onStateless: hooks.onStateless,
   })
 
   await server.listen()
