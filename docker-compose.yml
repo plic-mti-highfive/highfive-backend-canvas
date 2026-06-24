@@ -17,6 +17,17 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: canvas_redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend_canvas:
     container_name: backend_canvas
     build: .
@@ -29,8 +40,12 @@ services:
       MINIO_USERNAME: minioadmin
       MINIO_PASSWORD: minioadmin
       JWT_SECRET: your-jwt-secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:

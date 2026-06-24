@@ -10,7 +10,7 @@ export const onAuthenticate = async (data: onAuthenticatePayload) => {
 
   const payload = verifyCanvasToken(token, documentName)
   console.log(
-    `[AUTH] User ${payload.userId} authenticated with role ${payload.role} for project ${payload.projectId}.`
+    `[AUTH] User ${payload.userId} authenticated with role ${payload.role} for canvas ${payload.canvasId} (project ${payload.projectId}).`
   )
 
   if (payload.role === 'viewer') {
