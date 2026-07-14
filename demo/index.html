@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Highfive — Canvas Demo</title>
+    <!--
+      Usage:
+        1. Start backend:  pnpm dev  (or docker compose up)
+        2. Generate token: node demo/generate-token.mjs <userId> <canvasId> [role]
+                           e.g. node demo/generate-token.mjs alice demo-canvas editor
+        3. Open this file in 2 different browser windows
+        4. Paste the token, pick a name, connect
+
+      Features demonstrated:
+        · Post-its collaboratifs (Y.Map — drag, edit, delete)
+        · Chat temps réel (stateless channel)
+        · Sauvegarde / restauration automatique du canvas (S3 via extension Hocuspocus)
+        · Curseurs temps réel (Awareness)
+    -->
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #0f1117;
+        color: #e2e8f0;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ── BOARD ── */
+      #board {
+        position: fixed;
+        inset: 0;
+        background-color: #1a1d2e;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+        background-size: 40px 40px;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* ── STATUS BAR ── */
+      #statusbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 44px;
+        background: rgba(10, 11, 18, 0.9);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 14px;
+        z-index: 100;
+        font-size: 12px;
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 15px;
+        color: #818cf8;
+        letter-spacing: -0.3px;
+        flex-shrink: 0;
+      }
+
+      .sep { color: rgba(255,255,255,0.12); }
+
+      #status-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #475569;
+        flex-shrink: 0;
+        transition: background 0.3s;
+      }
+      #status-dot.connected    { background: #22c55e; box-shadow: 0 0 8px #22c55e80; }
+      #status-dot.connecting   { background: #f59e0b; animation: blink 1s ease infinite; }
+      #status-dot.disconnected { background: #ef4444; }
+      #status-dot.error        { background: #ef4444; }
+
+      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+      #status-text { color: #64748b; }
+      #canvas-label { color: #475569; }
+      #canvas-name { color: #7c8ca8; font-family: ui-monospace, monospace; }
+
+      .spacer { flex: 1; }
+
+      #user-count { color: #64748b; }
+
+      #save-indicator {
+        display: none;
+        align-items: center;
+        gap: 5px;
+        color: #22c55e;
+        font-size: 11px;
+        animation: fadein 0.3s ease;
+      }
+      #save-indicator.show { display: flex; }
+      @keyframes fadein { from{opacity:0} to{opacity:1} }
+
+      /* ── TOOLBAR ── */
+      #toolbar {
+        position: fixed;
+        top: 56px; left: 14px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .glass-panel {
+        background: rgba(10, 11, 18, 0.88);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .panel-title {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.9px;
+        color: #475569;
+        margin-bottom: 8px;
+      }
+
+      .color-row {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .color-dot {
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.12s, border-color 0.12s;
+      }
+      .color-dot:hover { transform: scale(1.2); }
+      .color-dot.selected { border-color: white; transform: scale(1.15); }
+
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+        white-space: nowrap;
+        width: 100%;
+      }
+      .btn-primary { background: #4f46e5; color: white; }
+      .btn-primary:hover:not(:disabled) { background: #4338ca; }
+      .btn:disabled { opacity: 0.35; cursor: default; }
+
+      /* ── CHAT SIDEBAR ── */
+      #chat-wrap {
+        position: fixed;
+        top: 44px; right: 0; bottom: 0;
+        width: 290px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        transform: translateX(290px);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #chat-wrap.open { transform: translateX(0); }
+
+      #chat-panel {
+        flex: 1;
+        background: rgba(10, 11, 18, 0.94);
+        backdrop-filter: blur(14px);
+        border-left: 1px solid rgba(255,255,255,0.07);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      #chat-toggle {
+        position: fixed;
+        top: 56px;
+        right: 0;
+        z-index: 101;
+        background: rgba(10, 11, 18, 0.88);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-right: none;
+        border-radius: 10px 0 0 10px;
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        color: #94a3b8;
+        transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s;
+      }
+      #chat-toggle:hover { background: rgba(20, 22, 35, 0.95); }
+      #chat-toggle.open { right: 290px; }
+
+      #chat-header {
+        padding: 14px 16px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.9px;
+        color: #64748b;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      #chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        scroll-behavior: smooth;
+      }
+      #chat-messages::-webkit-scrollbar { width: 3px; }
+      #chat-messages::-webkit-scrollbar-track { background: transparent; }
+      #chat-messages::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+      .chat-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #2d3748;
+        font-size: 12px;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .chat-msg { display: flex; flex-direction: column; gap: 3px; }
+      .chat-msg.own { align-items: flex-end; }
+
+      .msg-meta {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10px;
+        color: #475569;
+      }
+      .chat-msg.own .msg-meta { flex-direction: row-reverse; }
+
+      .msg-author { font-weight: 600; color: #64748b; }
+
+      .msg-bubble {
+        background: #1e2b3d;
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px 12px 12px 3px;
+        padding: 8px 11px;
+        font-size: 13px;
+        color: #cbd5e1;
+        max-width: 220px;
+        word-break: break-word;
+        line-height: 1.4;
+      }
+      .chat-msg.own .msg-bubble {
+        background: #312e81;
+        border-color: rgba(99,102,241,0.3);
+        border-radius: 12px 12px 3px 12px;
+        color: #c7d2fe;
+      }
+
+      #chat-input-row {
+        padding: 10px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        gap: 6px;
+        align-items: flex-end;
+      }
+
+      #chat-input {
+        flex: 1;
+        background: #0f1117;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        color: #e2e8f0;
+        outline: none;
+        font-family: inherit;
+        resize: none;
+        height: 36px;
+        transition: border-color 0.15s;
+      }
+      #chat-input:focus { border-color: #4f46e5; }
+      #chat-input::placeholder { color: #334155; }
+
+      #chat-send {
+        width: 36px; height: 36px;
+        background: #4f46e5;
+        color: white;
+        border: 0;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }
+      #chat-send:hover:not(:disabled) { background: #4338ca; }
+      #chat-send:disabled { opacity: 0.3; cursor: default; }
+
+      /* ── NOTIFICATION BANNER ── */
+      #banner {
+        position: fixed;
+        top: 52px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-80px);
+        z-index: 200;
+        background: rgba(10,11,18,0.95);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-size: 13px;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+        pointer-events: none;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      }
+      #banner.show { transform: translateX(-50%) translateY(0); }
+
+      /* ── CONNECT OVERLAY ── */
+      #overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.75);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 500;
+        transition: opacity 0.3s;
+      }
+      #overlay.hidden { display: none; }
+
+      #connect-card {
+        background: #12141f;
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 18px;
+        padding: 30px;
+        width: 420px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      }
+
+      #connect-card h1 {
+        font-size: 22px;
+        font-weight: 700;
+        color: #e2e8f0;
+        margin-bottom: 4px;
+      }
+      #connect-card h1 span { color: #818cf8; }
+
+      #connect-card .subtitle {
+        font-size: 12px;
+        color: #475569;
+        margin-bottom: 26px;
+        line-height: 1.5;
+      }
+
+      .field { margin-bottom: 14px; }
+      .field label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #475569;
+        margin-bottom: 5px;
+      }
+      .field input {
+        display: block;
+        width: 100%;
+        background: #0a0b12;
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+        color: #e2e8f0;
+        outline: none;
+        font-family: ui-monospace, monospace;
+        transition: border-color 0.15s;
+      }
+      .field input:focus { border-color: #4f46e5; }
+      .field input::placeholder { color: #334155; }
+
+      #connect-btn {
+        width: 100%;
+        padding: 11px;
+        background: #4f46e5;
+        color: white;
+        border: 0;
+        border-radius: 9px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 4px;
+        font-family: inherit;
+        transition: background 0.15s;
+      }
+      #connect-btn:hover { background: #4338ca; }
+
+      #connect-error {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #ef4444;
+        min-height: 16px;
+      }
+
+      .hint {
+        margin-top: 16px;
+        padding: 10px 12px;
+        background: rgba(79,70,229,0.08);
+        border: 1px solid rgba(79,70,229,0.2);
+        border-radius: 8px;
+        font-size: 11px;
+        color: #64748b;
+        line-height: 1.6;
+        font-family: ui-monospace, monospace;
+      }
+
+      /* ── POST-IT ── */
+      .postit {
+        position: absolute;
+        top: 0; left: 0;
+        width: 220px;
+        background: white;
+        border-radius: 3px;
+        box-shadow:
+          0 2px 4px rgba(0,0,0,0.15),
+          0 8px 24px rgba(0,0,0,0.25),
+          2px 2px 0 rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        will-change: transform;
+        z-index: 20;
+        transition: box-shadow 0.15s;
+      }
+      .postit.is-dragging {
+        z-index: 50;
+        box-shadow:
+          0 6px 12px rgba(0,0,0,0.2),
+          0 20px 60px rgba(0,0,0,0.35),
+          4px 4px 0 rgba(0,0,0,0.12);
+      }
+
+      .pi-header {
+        height: 30px;
+        border-radius: 3px 3px 0 0;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        cursor: grab;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .pi-header:active { cursor: grabbing; }
+
+      .pi-dots {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+      }
+      .pi-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.15);
+        flex-shrink: 0;
+      }
+
+      .pi-delete {
+        width: 18px; height: 18px;
+        border: none;
+        background: rgba(0,0,0,0.12);
+        border-radius: 3px;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        color: rgba(0,0,0,0.45);
+        line-height: 1;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.1s, color 0.1s;
+        flex-shrink: 0;
+        padding: 0;
+        font-family: inherit;
+      }
+      .pi-delete:hover {
+        background: rgba(0,0,0,0.22);
+        color: rgba(0,0,0,0.7);
+      }
+
+      .pi-body {
+        padding: 2px 0;
+        flex: 1;
+      }
+
+      .pi-text {
+        display: block;
+        width: 100%;
+        border: none;
+        outline: none;
+        resize: none;
+        padding: 8px 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        font-family: system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+        background: transparent;
+        min-height: 100px;
+      }
+
+      .pi-footer {
+        padding: 6px 10px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid rgba(0,0,0,0.06);
+      }
+
+      .pi-author {
+        font-size: 10px;
+        color: rgba(0,0,0,0.35);
+        font-weight: 500;
+      }
+
+      .pi-time {
+        font-size: 9px;
+        color: rgba(0,0,0,0.25);
+      }
+
+      /* ── CURSORS ── */
+      .cursor {
+        position: absolute;
+        top: 0; left: 0;
+        pointer-events: none;
+        will-change: transform;
+        transition: transform 90ms linear;
+        z-index: 40;
+      }
+      .cursor svg {
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+      }
+      .cursor-label {
+        position: absolute;
+        top: 20px; left: 14px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: white;
+        white-space: nowrap;
+        letter-spacing: 0.2px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Canvas board -->
+    <div id="board"></div>
+
+    <!-- Status bar -->
+    <div id="statusbar">
+      <span class="brand">✦ Highfive</span>
+      <span class="sep">|</span>
+      <div id="status-dot"></div>
+      <span id="status-text">Déconnecté</span>
+      <span class="sep">·</span>
+      <span id="canvas-label" style="display:none">canvas:</span>
+      <span id="canvas-name"></span>
+      <div class="spacer"></div>
+      <span id="user-count"></span>
+      <div id="save-indicator">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M4 6.5l1.8 1.8L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sauvegardé S3
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <div class="glass-panel">
+        <div class="panel-title">Couleur de la note</div>
+        <div class="color-row" id="color-row"></div>
+        <button class="btn btn-primary" id="add-btn" disabled>
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Nouvelle note
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat toggle button -->
+    <button id="chat-toggle" title="Ouvrir le chat">💬</button>
+
+    <!-- Chat sidebar -->
+    <div id="chat-wrap">
+      <div id="chat-panel">
+        <div id="chat-header">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4l-3 2V3a1 1 0 0 1 1-1z" stroke="#64748b" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+          Chat
+        </div>
+        <div id="chat-messages">
+          <div class="chat-empty" id="chat-empty">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M4 4h20a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 1-1.73V4z" stroke="#2d3748" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            Aucun message pour l'instant
+          </div>
+        </div>
+        <div id="chat-input-row">
+          <input id="chat-input" type="text" placeholder="Envoyer un message…" disabled maxlength="500" />
+          <button id="chat-send" disabled title="Envoyer">↑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Banner notification -->
+    <div id="banner"></div>
+
+    <!-- Connection overlay -->
+    <div id="overlay">
+      <div id="connect-card">
+        <h1>✦ <span>Highfive</span> Canvas</h1>
+        <p class="subtitle">
+          Démo collaborative : post-its · chat · sauvegarde S3<br/>
+          Ouvrez 2 fenêtres pour tester la collaboration en temps réel.
+        </p>
+        <div class="field">
+          <label>WebSocket URL</label>
+          <input id="f-url" value="ws://localhost:8585" />
+        </div>
+        <div class="field">
+          <label>Canvas ID <span style="color:#334155;font-size:9px;text-transform:none;letter-spacing:0">(= canvasId dans le token)</span></label>
+          <input id="f-canvas" value="demo-canvas" />
+        </div>
+        <div class="field">
+          <label>JWT Token</label>
+          <input id="f-token" placeholder="Collez le token JWT ici" />
+        </div>
+        <div class="field">
+          <label>Votre nom</label>
+          <input id="f-name" value="Alice" />
+        </div>
+        <button id="connect-btn">Se connecter</button>
+        <div id="connect-error"></div>
+        <div class="hint">
+          # Générer un token :<br/>
+          node demo/generate-token.mjs &lt;userId&gt; &lt;canvasId&gt; [role]<br/>
+          <br/>
+          # Exemple :<br/>
+          node demo/generate-token.mjs alice demo-canvas editor
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { HocuspocusProvider } from 'https://esm.sh/@hocuspocus/provider@3.4.4'
+      import * as Y from 'https://esm.sh/yjs@13.6.30'
+
+      // ── CONFIG ──────────────────────────────────────────────
+      const POSTIT_COLORS = [
+        { bg: '#fef9c3', border: '#fde047', name: 'Jaune' },
+        { bg: '#dcfce7', border: '#86efac', name: 'Vert' },
+        { bg: '#dbeafe', border: '#93c5fd', name: 'Bleu' },
+        { bg: '#fce7f3', border: '#f9a8d4', name: 'Rose' },
+        { bg: '#ede9fe', border: '#c4b5fd', name: 'Violet' },
+        { bg: '#ffedd5', border: '#fdba74', name: 'Orange' },
+      ]
+
+      const USER_COLORS = [
+        '#e11d48', '#db2777', '#9333ea', '#2563eb',
+        '#0891b2', '#059669', '#ca8a04', '#ea580c',
+      ]
+
+      // ── STATE ───────────────────────────────────────────────
+      let provider = null
+      let ydoc = null
+      let postitsMap = null
+      let dragging = null   // { id, startX, startY, origX, origY }
+      let localName = 'Alice'
+      let localColor = USER_COLORS[0]
+      let localUserId = ''
+      let selectedColorIdx = 0
+      let chatOpen = false
+      let saveTimer = null
+      let msgCount = 0
+
+      // ── DOM ─────────────────────────────────────────────────
+      const board      = document.getElementById('board')
+      const overlay    = document.getElementById('overlay')
+      const statusDot  = document.getElementById('status-dot')
+      const statusText = document.getElementById('status-text')
+      const canvasLabel= document.getElementById('canvas-label')
+      const canvasName = document.getElementById('canvas-name')
+      const userCount  = document.getElementById('user-count')
+      const saveInd    = document.getElementById('save-indicator')
+      const addBtn     = document.getElementById('add-btn')
+      const chatWrap   = document.getElementById('chat-wrap')
+      const chatToggle = document.getElementById('chat-toggle')
+      const chatMsgs   = document.getElementById('chat-messages')
+      const chatEmpty  = document.getElementById('chat-empty')
+      const chatInput  = document.getElementById('chat-input')
+      const chatSend   = document.getElementById('chat-send')
+      const banner     = document.getElementById('banner')
+      const colorRow   = document.getElementById('color-row')
+      const connectBtn = document.getElementById('connect-btn')
+      const connectErr = document.getElementById('connect-error')
+
+      // ── COLOR PICKER ────────────────────────────────────────
+      POSTIT_COLORS.forEach((c, i) => {
+        const dot = document.createElement('button')
+        dot.className = 'color-dot' + (i === 0 ? ' selected' : '')
+        dot.style.background = c.bg
+        dot.style.borderColor = c.border
+        dot.title = c.name
+        dot.addEventListener('click', () => {
+          document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'))
+          dot.classList.add('selected')
+          selectedColorIdx = i
+        })
+        colorRow.appendChild(dot)
+      })
+
+      // ── CHAT TOGGLE ─────────────────────────────────────────
+      chatToggle.addEventListener('click', () => {
+        chatOpen = !chatOpen
+        chatWrap.classList.toggle('open', chatOpen)
+        chatToggle.classList.toggle('open', chatOpen)
+        chatToggle.textContent = chatOpen ? '✕' : '💬'
+      })
+
+      // ── CONNECT ─────────────────────────────────────────────
+      connectBtn.addEventListener('click', doConnect)
+      document.getElementById('f-token').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doConnect()
+      })
+
+      function doConnect() {
+        const url      = document.getElementById('f-url').value.trim()
+        const canvasId = document.getElementById('f-canvas').value.trim()
+        const token    = document.getElementById('f-token').value.trim()
+        const name     = document.getElementById('f-name').value.trim() || 'User'
+
+        if (!token) {
+          connectErr.textContent = 'Token requis. Générez-en un avec generate-token.mjs'
+          return
+        }
+        connectErr.textContent = ''
+        overlay.classList.add('hidden')
+
+        localName = name
+        localUserId = name  // simplification démo : userId = nom affiché
+        localColor = USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)]
+
+        setStatus('connecting', 'Connexion…')
+        canvasLabel.style.display = ''
+        canvasName.textContent = canvasId
+
+        connect(url, canvasId, token)
+      }
+
+      function connect(url, canvasId, token) {
+        if (provider) {
+          provider.destroy()
+          provider = null
+        }
+
+        ydoc = new Y.Doc()
+        postitsMap = ydoc.getMap('postits')
+
+        provider = new HocuspocusProvider({
+          url,
+          name: canvasId,
+          token,
+          document: ydoc,
+
+          onOpen: () => setStatus('connecting', 'Connecté, authentification…'),
+
+          onAuthenticated: () => {
+            setStatus('connected', 'Connecté')
+            addBtn.disabled = false
+            chatInput.disabled = false
+            chatSend.disabled = false
+            provider.setAwarenessField('user', {
+              name: localName,
+              color: localColor,
+              userId: localUserId,
+            })
+          },
+
+          onAuthenticationFailed: ({ reason }) => {
+            setStatus('error', 'Échec auth : ' + reason)
+            overlay.classList.remove('hidden')
+            connectErr.textContent = 'Authentification échouée : ' + reason
+          },
+
+          onSynced: ({ state }) => {
+            if (!state) return
+            const count = postitsMap.size
+            if (count > 0) {
+              showBanner('☁️', `Canvas restauré depuis S3 — ${count} note${count > 1 ? 's' : ''} chargée${count > 1 ? 's' : ''}`)
+            }
+          },
+
+          onDisconnect: () => {
+            setStatus('disconnected', 'Déconnecté')
+            addBtn.disabled = true
+            chatInput.disabled = true
+            chatSend.disabled = true
+            updateUserCount(0)
+          },
+
+          onClose: () => {
+            setStatus('disconnected', 'Déconnecté')
+          },
+        })
+
+        // ── AWARENESS (curseurs) ─────────────────────────────
+        provider.awareness.on('update', () => {
+          renderCursors()
+          const states = provider.awareness.getStates()
+          const others = [...states.keys()].filter(id => id !== provider.awareness.clientID)
+          updateUserCount(others.length)
+        })
+
+        // ── POST-ITS (Y.Map observation) ────────────────────
+        postitsMap.observe(event => {
+          event.changes.keys.forEach((change, key) => {
+            if (change.action === 'delete') {
+              document.getElementById('pi-' + key)?.remove()
+            } else {
+              upsertPostit(postitsMap.get(key))
+            }
+          })
+          flashSaveIndicator()
+        })
+
+        // ── CHAT (stateless channel) ─────────────────────────
+        provider.on('stateless', ({ payload }) => {
+          try {
+            const msg = JSON.parse(payload)
+            if (msg.type === 'chat' && msg.data) {
+              appendChatMessage(msg.data)
+            }
+          } catch {}
+        })
+      }
+
+      // ── STATUS ──────────────────────────────────────────────
+      function setStatus(type, text) {
+        statusDot.className = type
+        statusText.textContent = text
+      }
+
+      function updateUserCount(n) {
+        userCount.textContent = n > 0 ? `${n} autre${n > 1 ? 's' : ''} connecté${n > 1 ? 's' : ''}` : ''
+      }
+
+      function flashSaveIndicator() {
+        clearTimeout(saveTimer)
+        saveInd.classList.add('show')
+        saveTimer = setTimeout(() => saveInd.classList.remove('show'), 3000)
+      }
+
+      // ── BANNER ──────────────────────────────────────────────
+      let bannerTimer = null
+      function showBanner(icon, text) {
+        banner.innerHTML = `<span>${icon}</span><span>${text}</span>`
+        banner.classList.add('show')
+        clearTimeout(bannerTimer)
+        bannerTimer = setTimeout(() => banner.classList.remove('show'), 4000)
+      }
+
+      // ── POST-ITS ────────────────────────────────────────────
+      addBtn.addEventListener('click', () => {
+        const id = crypto.randomUUID()
+        const margin = 60
+        const maxX = Math.max(margin, board.clientWidth - 260)
+        const maxY = Math.max(margin, board.clientHeight - 220)
+        const x = margin + Math.random() * (maxX - margin)
+        const y = 80 + Math.random() * (maxY - 80)
+        const color = POSTIT_COLORS[selectedColorIdx]
+
+        postitsMap.set(id, {
+          id,
+          text: '',
+          x,
+          y,
+          color: color.bg,
+          borderColor: color.border,
+          authorId: localUserId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
+      })
+
+      function upsertPostit(data) {
+        let el = document.getElementById('pi-' + data.id)
+        const isNew = !el
+
+        if (isNew) {
+          el = buildPostitEl(data)
+          board.appendChild(el)
+        }
+
+        // Position (skip if currently dragged by us)
+        if (!dragging || dragging.id !== data.id) {
+          el.style.transform = `translate(${Math.round(data.x)}px, ${Math.round(data.y)}px)`
+        }
+
+        // Header color
+        const header = el.querySelector('.pi-header')
+        header.style.background = data.color
+        header.style.borderBottom = `1px solid ${data.borderColor || data.color}`
+
+        // Text (don't overwrite if focused)
+        const textarea = el.querySelector('.pi-text')
+        if (textarea !== document.activeElement) {
+          textarea.value = data.text
+        }
+
+        // Author
+        const isOwn = data.authorId === localUserId
+        el.querySelector('.pi-author').textContent = isOwn ? 'Vous' : data.authorId
+      }
+
+      function buildPostitEl(data) {
+        const el = document.createElement('div')
+        el.id = 'pi-' + data.id
+        el.className = 'postit'
+        el.style.transform = `translate(${Math.round(data.x)}px, ${Math.round(data.y)}px)`
+
+        el.innerHTML = `
+          <div class="pi-header">
+            <div class="pi-dots">
+              <div class="pi-dot"></div>
+              <div class="pi-dot"></div>
+              <div class="pi-dot"></div>
+            </div>
+            <button class="pi-delete" title="Supprimer">×</button>
+          </div>
+          <div class="pi-body">
+            <textarea class="pi-text" placeholder="Votre note…"></textarea>
+          </div>
+          <div class="pi-footer">
+            <span class="pi-author"></span>
+            <span class="pi-time">${formatTime(data.createdAt)}</span>
+          </div>
+        `
+
+        // Drag on header
+        const header = el.querySelector('.pi-header')
+        header.addEventListener('mousedown', e => {
+          e.preventDefault()
+          const current = postitsMap.get(data.id)
+          if (!current) return
+          dragging = {
+            id: data.id,
+            startMouseX: e.clientX,
+            startMouseY: e.clientY,
+            origX: current.x,
+            origY: current.y,
+          }
+          el.classList.add('is-dragging')
+        })
+
+        // Delete
+        el.querySelector('.pi-delete').addEventListener('click', e => {
+          e.stopPropagation()
+          postitsMap.delete(data.id)
+        })
+
+        // Edit text (update on blur)
+        const textarea = el.querySelector('.pi-text')
+        textarea.addEventListener('blur', () => {
+          const current = postitsMap.get(data.id)
+          if (current && current.text !== textarea.value) {
+            postitsMap.set(data.id, {
+              ...current,
+              text: textarea.value,
+              updatedAt: Date.now(),
+            })
+          }
+        })
+        // Prevent drag triggering from textarea
+        textarea.addEventListener('mousedown', e => e.stopPropagation())
+
+        return el
+      }
+
+      // ── DRAG (global) ────────────────────────────────────────
+      document.addEventListener('mousemove', e => {
+        // Update cursor awareness
+        if (provider?.awareness) {
+          const state = provider.awareness.getLocalState()
+          if (state?.user) {
+            provider.setAwarenessField('user', {
+              ...state.user,
+              cursor: { x: e.clientX, y: e.clientY },
+            })
+          }
+        }
+
+        // Drag post-it
+        if (!dragging) return
+        const dx = e.clientX - dragging.startMouseX
+        const dy = e.clientY - dragging.startMouseY
+        const newX = dragging.origX + dx
+        const newY = dragging.origY + dy
+
+        // Update DOM immediately for smoothness
+        const el = document.getElementById('pi-' + dragging.id)
+        if (el) el.style.transform = `translate(${Math.round(newX)}px, ${Math.round(newY)}px)`
+
+        // Throttle Y.Map updates (~30fps)
+        const now = Date.now()
+        if (!dragging.lastUpdate || now - dragging.lastUpdate > 33) {
+          dragging.lastUpdate = now
+          const current = postitsMap.get(dragging.id)
+          if (current) {
+            postitsMap.set(dragging.id, { ...current, x: newX, y: newY, updatedAt: now })
+          }
+        }
+      })
+
+      document.addEventListener('mouseup', () => {
+        if (!dragging) return
+        const el = document.getElementById('pi-' + dragging.id)
+        el?.classList.remove('is-dragging')
+
+        // Final position update
+        const current = postitsMap.get(dragging.id)
+        if (current) {
+          const dx = event.clientX - dragging.startMouseX
+          const dy = event.clientY - dragging.startMouseY
+          postitsMap.set(dragging.id, {
+            ...current,
+            x: dragging.origX + dx,
+            y: dragging.origY + dy,
+            updatedAt: Date.now(),
+          })
+        }
+        dragging = null
+      })
+
+      // ── CURSORS ─────────────────────────────────────────────
+      function renderCursors() {
+        if (!provider?.awareness) return
+        const states = provider.awareness.getStates()
+        const localId = provider.awareness.clientID
+        const alive = new Set()
+
+        states.forEach((state, clientId) => {
+          if (clientId === localId || !state.user?.cursor) return
+          alive.add(clientId)
+
+          const { cursor, name, color } = state.user
+          let el = document.querySelector(`.cursor[data-cid="${clientId}"]`)
+
+          if (!el) {
+            el = document.createElement('div')
+            el.className = 'cursor'
+            el.dataset.cid = clientId
+            el.innerHTML = `
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M2 2L2 16L6.5 11.5L9 18L11.5 17L9 10.5L15 10.5Z"
+                      fill="currentColor" stroke="white" stroke-width="1"/>
+              </svg>
+              <span class="cursor-label"></span>
+            `
+            board.appendChild(el)
+          }
+
+          el.style.color = color || '#818cf8'
+          el.style.transform = `translate(${cursor.x}px, ${cursor.y}px)`
+          const label = el.querySelector('.cursor-label')
+          label.textContent = name || 'Inconnu'
+          label.style.background = color || '#818cf8'
+        })
+
+        // Remove stale cursors
+        document.querySelectorAll('.cursor').forEach(el => {
+          const cid = parseInt(el.dataset.cid)
+          if (!alive.has(cid)) el.remove()
+        })
+      }
+
+      // ── CHAT ────────────────────────────────────────────────
+      chatSend.addEventListener('click', sendChat)
+      chatInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          sendChat()
+        }
+      })
+
+      function sendChat() {
+        const text = chatInput.value.trim()
+        if (!text || !provider) return
+        provider.sendStateless(JSON.stringify({ type: 'chat', text }))
+        chatInput.value = ''
+      }
+
+      function appendChatMessage(data) {
+        if (chatEmpty) chatEmpty.remove()
+
+        const isOwn = data.authorId === localUserId
+        const el = document.createElement('div')
+        el.className = 'chat-msg' + (isOwn ? ' own' : '')
+
+        const time = formatTime(data.timestamp)
+        el.innerHTML = `
+          <div class="msg-meta">
+            <span class="msg-author">${escHtml(isOwn ? 'Vous' : data.authorId)}</span>
+            <span>${time}</span>
+          </div>
+          <div class="msg-bubble">${escHtml(data.text)}</div>
+        `
+        chatMsgs.appendChild(el)
+        chatMsgs.scrollTop = chatMsgs.scrollHeight
+        msgCount++
+
+        // Auto-open chat on first message
+        if (!chatOpen && msgCount === 1) {
+          chatOpen = true
+          chatWrap.classList.add('open')
+          chatToggle.classList.add('open')
+          chatToggle.textContent = '✕'
+        }
+      }
+
+      // ── UTILS ────────────────────────────────────────────────
+      function formatTime(ts) {
+        return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      }
+
+      function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      }
+    </script>
+  </body>
+</html>
