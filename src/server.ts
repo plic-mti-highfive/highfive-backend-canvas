@@ -4,6 +4,7 @@ import { S3 } from '@hocuspocus/extension-s3'
 import { s3Config } from './index'
 import { env } from './env'
 import * as hooks from './hooks'
+import { onRequest } from './http/onRequest'
 
 export const startServer = async () => {
   console.log(`[SERVER] Starting server...`)
@@ -21,6 +22,7 @@ export const startServer = async () => {
     onAuthenticate: hooks.onAuthenticate,
     onDisconnect: hooks.onDisconnect,
     onStateless: hooks.onStateless,
+    onRequest,
   })
 
   await server.listen()

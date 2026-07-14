@@ -2,7 +2,11 @@ import { randomUUID } from 'crypto'
 import { onStatelessPayload } from '@hocuspocus/server'
 import { canvasEventsQueue } from '../queue'
 import { JOB_TYPES, type ChatMessageJobData } from '../queue/queue.constants'
-import type { CanvasTokenPayload } from '@plic-mti-highfive/shared-types'
+import {
+  CANVAS_KEYS,
+  type CanvasChatMessage,
+  type CanvasTokenPayload,
+} from '@plic-mti-highfive/shared-types'
 
 interface IncomingChatMessage {
   type: 'chat'
@@ -33,6 +37,16 @@ export const onStateless = async (data: onStatelessPayload) => {
   }
 
   await canvasEventsQueue.add(JOB_TYPES.CANVAS_CHAT_MESSAGE, chatMessage)
+
+  // Le chat vit dans le document Yjs, pas seulement dans le broadcast : sans ca
+  // il serait perdu a la reconnexion et absent de l'export envoye a l'IA.
+  const persisted: CanvasChatMessage = {
+    id: chatMessage.id,
+    text: chatMessage.text,
+    authorId: chatMessage.authorId,
+    timestamp: chatMessage.timestamp,
+  }
+  document.getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT).push([persisted])
 
   document.broadcastStateless(JSON.stringify({ type: 'chat', data: chatMessage }))
 

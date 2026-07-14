@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import * as Y from 'yjs'
+import { CANVAS_KEYS, type CanvasChatMessage } from '@plic-mti-highfive/shared-types'
 
 vi.mock('../../src/queue', () => ({
   canvasEventsQueue: { add: vi.fn().mockResolvedValue(undefined) },
@@ -15,12 +17,18 @@ const mockUser = {
   role: 'editor',
 }
 
-const makePayload = (payload: string) => ({
-  payload,
-  documentName: 'canvas-abc',
-  document: { broadcastStateless: vi.fn() } as any,
-  connection: { context: { user: mockUser } } as any,
-})
+// Un vrai Y.Doc plutot qu'un mock : le hook persiste desormais le chat dans le
+// document (Y.Array), et on veut le verifier pour de bon.
+const makePayload = (payload: string) => {
+  const document = new Y.Doc() as Y.Doc & { broadcastStateless: ReturnType<typeof vi.fn> }
+  document.broadcastStateless = vi.fn()
+  return {
+    payload,
+    documentName: 'canvas-abc',
+    document: document as any,
+    connection: { context: { user: mockUser } } as any,
+  }
+}
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -73,5 +81,25 @@ describe('Hook: onStateless — chat', () => {
     await onStateless(data)
     const jobData = (canvasEventsQueue.add as any).mock.calls[0][1]
     expect(jobData.text).toBe('Bonjour')
+  })
+
+  it('persiste le message dans le document, pour survivre a la reconnexion et nourrir l export IA', async () => {
+    const data = makePayload(JSON.stringify({ type: 'chat', text: 'On part sur du JWT' }))
+    await onStateless(data)
+
+    const chat = (data.document as unknown as Y.Doc)
+      .getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT)
+      .toArray()
+
+    expect(chat).toHaveLength(1)
+    expect(chat[0]).toMatchObject({ text: 'On part sur du JWT', authorId: 'user-1' })
+  })
+
+  it('ne persiste rien quand le message est ignore', async () => {
+    const data = makePayload(JSON.stringify({ type: 'chat', text: '  ' }))
+    await onStateless(data)
+
+    const chat = (data.document as unknown as Y.Doc).getArray(CANVAS_KEYS.CHAT).toArray()
+    expect(chat).toHaveLength(0)
   })
 })
