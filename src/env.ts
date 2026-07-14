@@ -12,6 +12,7 @@ const devSchema = z.object({
   MINIO_USERNAME: z.string().default('minioadmin'),
   MINIO_PASSWORD: z.string().default('minioadmin'),
   JWT_SECRET: z.string(),
+  INTERNAL_SECRET: z.string().default('dev-internal-secret'),
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().default(6379),
 })
@@ -25,6 +26,7 @@ const prodSchema = z.object({
   MINIO_USERNAME: z.string().optional(),
   MINIO_PASSWORD: z.string().optional(),
   JWT_SECRET: z.string(),
+  INTERNAL_SECRET: z.string(),
   REDIS_HOST: z.string(),
   REDIS_PORT: z.coerce.number().default(6379),
 })
