@@ -4,8 +4,10 @@ services:
     container_name: highfive_minio
     restart: unless-stopped
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      # Ports hote decales : le compose du backend core expose deja MinIO sur
+      # 9000/9001, et les trois backends doivent pouvoir tourner ensemble.
+      - '9010:9000'
+      - '9011:9001'
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -22,7 +24,8 @@ services:
     image: redis:7-alpine
     container_name: canvas_redis
     ports:
-      - '6379:6379'
+      # Idem : 6379 est pris par le Redis du backend core.
+      - '6381:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -32,7 +35,10 @@ services:
   backend_canvas:
     container_name: highfive_backend_canvas
     restart: unless-stopped
-    build: .
+    build:
+      context: .
+      secrets:
+        - github_token
     ports:
       - '8585:8585'
     environment:
@@ -41,7 +47,12 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_USERNAME: minioadmin
       MINIO_PASSWORD: minioadmin
-      JWT_SECRET: your-jwt-secret
+      # Les deux secrets partages avec le backend core. Les valeurs par defaut
+      # correspondent a .env.example ici et a .env.example du core
+      # (CANVAS_JWT_SECRET / CANVAS_INTERNAL_SECRET) : le core signe, ce service
+      # verifie. S'ils divergent, toute connexion WebSocket est rejetee.
+      JWT_SECRET: ${JWT_SECRET:-change-me-canvas}
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-dev-internal-secret}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
@@ -53,3 +64,7 @@ services:
 volumes:
   minio:
     driver: local
+
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN
