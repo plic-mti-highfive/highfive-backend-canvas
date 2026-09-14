@@ -6,7 +6,6 @@ vi.useFakeTimers()
 
 const mockPayload = {
   userId: '1',
-  tenantId: 'ecole-1',
   projectId: 'project-1',
   canvasId: 'canvas-1',
   role: 'editor' as const,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as Y from 'yjs'
-import { CANVAS_KEYS, type CanvasChatMessage } from '@plic-mti-highfive/shared-types'
+import { CANVAS_KEYS, type CanvasChatMessage } from '../../src/contract'
 import { extractElements, readCanvasDocument } from '../../src/canvas/export'
 
 const shape = (id: string, type: string, props: Record<string, unknown> = {}) => ({

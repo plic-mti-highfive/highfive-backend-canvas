@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as Y from 'yjs'
-import { CANVAS_KEYS, type CanvasChatMessage } from '@plic-mti-highfive/shared-types'
+import { CANVAS_KEYS, type CanvasChatMessage } from '../../src/contract'
 
 vi.mock('../../src/queue', () => ({
   canvasEventsQueue: { add: vi.fn().mockResolvedValue(undefined) },
@@ -11,7 +11,6 @@ import { canvasEventsQueue } from '../../src/queue'
 
 const mockUser = {
   userId: 'user-1',
-  tenantId: 'tenant-1',
   projectId: 'project-1',
   canvasId: 'canvas-abc',
   role: 'editor',

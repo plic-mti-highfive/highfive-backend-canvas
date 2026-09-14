@@ -1,0 +1,21 @@
+title: HighFive — backend Canvas
+type: project
+course: PLIC — Projet Long d'Innovation Collaborative
+school: EPITA
+year: MTI
+dates: 2025-2026
+description: Serveur temps réel (Hocuspocus/Yjs sur WebSocket) du canvas collaboratif HighFive — synchronisation CRDT de tableaux tldraw, chat de session et persistance des documents sur S3.
+repo: github.com/plic-mti-highfive/highfive-backend-canvas
+authorship: author
+contribution: projet d'équipe — développeur au même titre — dépôt GitHub d'un tiers (organisation plic-mti-highfive), 7 commits sur 18 (sous deux identités git)
+languages: [TypeScript, JavaScript]
+tools: [Hocuspocus, Yjs, WebSocket (ws), Zod, jsonwebtoken, BullMQ, AWS S3 SDK, MinIO, k6, Vitest, Docker, Docker Compose, pnpm, GitHub Actions]
+skills:
+  - Serveur de collaboration temps réel CRDT (Yjs/Hocuspocus) avec authentification par JWT à la connexion WebSocket et rôles lecture seule/édition
+  - Extraction sémantique d'un document tldraw (post-its, formes, flèches, liens) vers un modèle typé consommé par le service IA
+  - Persistance de documents collaboratifs sur stockage objet S3/MinIO
+  - Tests de charge WebSocket avec k6 (débit de chat, montée en charge des connexions)
+  - Tests unitaires (auth JWT, export de canvas, hooks d'authentification) avec Vitest
+team_size: 3
+role: Développeur
+highlight: true

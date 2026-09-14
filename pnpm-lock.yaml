@@ -26,9 +26,6 @@ importers:
       '@hocuspocus/server':
         specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
-      '@plic-mti-highfive/shared-types':
-        specifier: ^1.4.0
-        version: 1.4.0
       bullmq:
         specifier: ^5.79.1
         version: 5.79.1
@@ -574,9 +571,6 @@ packages:
 
   '@oxc-project/types@0.115.0':
     resolution: {integrity: sha512-4n91DKnebUS4yjUHl2g3/b2T+IUdCfmoZGhmwsovZCDaJSs+QkVAM+0AqqTxHSsHfeiMuueT75cZaZcT/m0pSw==}
-
-  '@plic-mti-highfive/shared-types@1.4.0':
-    resolution: {integrity: sha512-G5ZQxFZPy5PcL+PjGv89bJFobYHNfilkIXV9qoIhMiy5erWUTFbalPVkQiNeCZwuq4aB5XcZBCyhr2tKgjSasw==, tarball: https://npm.pkg.github.com/download/@plic-mti-highfive/shared-types/1.4.0/ccb4d4cce55419628c2f16f98ba0a5621e2c9f3a}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -2481,8 +2475,6 @@ snapshots:
   '@oxc-project/runtime@0.115.0': {}
 
   '@oxc-project/types@0.115.0': {}
-
-  '@plic-mti-highfive/shared-types@1.4.0': {}
 
   '@polka/url@1.0.0-next.29': {}
 

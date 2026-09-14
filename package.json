@@ -1,7 +1,7 @@
 {
-  "name": "poc_hocuspocus",
+  "name": "highfive-backend-canvas",
   "version": "1.0.0",
-  "description": "",
+  "description": "HighFive! — service du Mur (Yjs/Hocuspocus)",
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -31,7 +31,6 @@
     "@hocuspocus/extension-s3": "^3.4.4",
     "@hocuspocus/provider": "^3.4.4",
     "@hocuspocus/server": "^3.4.4",
-    "@plic-mti-highfive/shared-types": "^1.4.0",
     "bullmq": "^5.79.1",
     "dotenv": "^17.3.1",
     "jsonwebtoken": "^9.0.3",

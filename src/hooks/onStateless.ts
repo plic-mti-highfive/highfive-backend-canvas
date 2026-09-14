@@ -6,7 +6,7 @@ import {
   CANVAS_KEYS,
   type CanvasChatMessage,
   type CanvasTokenPayload,
-} from '@plic-mti-highfive/shared-types'
+} from '../contract'
 
 interface IncomingChatMessage {
   type: 'chat'
@@ -31,7 +31,6 @@ export const onStateless = async (data: onStatelessPayload) => {
     id: randomUUID(),
     text: message.text.trim(),
     authorId: user.userId,
-    tenantId: user.tenantId,
     canvasId: documentName,
     timestamp: Date.now(),
   }

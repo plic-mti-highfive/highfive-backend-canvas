@@ -41,7 +41,10 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_USERNAME: minioadmin
       MINIO_PASSWORD: minioadmin
-      JWT_SECRET: your-jwt-secret
+      # Doit valoir exactement le CANVAS_JWT_SECRET du core, qui signe les jetons.
+      JWT_SECRET: change-me-canvas
+      # Doit valoir exactement le CANVAS_INTERNAL_SECRET du core, qui appelle /export.
+      INTERNAL_SECRET: dev-internal-secret
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:

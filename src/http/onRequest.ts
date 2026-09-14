@@ -62,8 +62,8 @@ export const onRequest = async (data: onRequestPayload): Promise<void> => {
     })
     await connection.disconnect()
 
-    // Le canvas ignore projet et tenant : ils vivent dans le token que le core
-    // emet, et le core — seul appelant — les possede deja.
+    // Le canvas ignore le projet : il vit dans le jeton que le core emet, et
+    // le core — seul appelant — le possede deja.
     send(response, 200, { canvasId, ...result })
   } catch (error) {
     console.error(`[EXPORT] Failed to export canvas ${canvasId}:`, error)

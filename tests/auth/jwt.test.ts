@@ -9,7 +9,6 @@ vi.mock('../../src/env', () => ({
 describe('Auth: verifyCanvasToken', () => {
   const validPayload = {
     userId: 'user-123',
-    tenantId: 'ecole-a',
     projectId: 'projet-456',
     canvasId: 'canvas-789',
     role: 'editor' as const,

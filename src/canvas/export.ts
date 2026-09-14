@@ -3,7 +3,7 @@ import {
   CANVAS_KEYS,
   type CanvasChatMessage,
   type CanvasElement,
-} from '@plic-mti-highfive/shared-types'
+} from '../contract'
 
 /**
  * Traduction des records tldraw en elements semantiques.

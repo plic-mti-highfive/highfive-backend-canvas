@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { env } from '../env'
-import { CanvasTokenPayload } from '@plic-mti-highfive/shared-types'
+import { CanvasTokenPayload } from '../contract'
 
 export const verifyCanvasToken = (token: string, expectedCanvasId: string): CanvasTokenPayload => {
   try {
