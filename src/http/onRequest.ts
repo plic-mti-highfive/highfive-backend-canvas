@@ -84,12 +84,24 @@ export const onRequest = async (data: onRequestPayload): Promise<void> => {
     }
 
     try {
-      const connection = await instance.openDirectConnection(canvasId, {})
       let created = false
-      await connection.transact((document) => {
-        created = injectAssistantMessage(document, canvasId, input)
-      })
-      await connection.disconnect()
+      // Document deja charge (des clients sont connectes) : on y ecrit directement,
+      // la persistance suit le debounce habituel. Une connexion directe force
+      // deux ecritures S3 synchrones par reponse (transact + disconnect), ce qui
+      // plafonnait le debit du chat sous charge. Document non charge : connexion
+      // directe, qui charge puis sauvegarde (et decharge) le document.
+      const loaded = instance.documents.get(canvasId)
+      if (loaded) {
+        loaded.transact(() => {
+          created = injectAssistantMessage(loaded, canvasId, input)
+        })
+      } else {
+        const connection = await instance.openDirectConnection(canvasId, {})
+        await connection.transact((document) => {
+          created = injectAssistantMessage(document, canvasId, input)
+        })
+        await connection.disconnect()
+      }
       send(response, created ? 201 : 200, { id: input.id, created })
     } catch (error) {
       console.error(`[CHAT] Failed to inject message into canvas ${canvasId}:`, error)

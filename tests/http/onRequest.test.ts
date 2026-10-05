@@ -22,6 +22,8 @@ const run = async (opts: {
   rawBody?: string
   docs?: Map<string, Y.Doc & { broadcastStateless?: (p: string) => void }>
   failOpen?: boolean
+  /** Le document est deja charge en memoire (des clients sont connectes). */
+  loaded?: boolean
 }) => {
   const request = new EventEmitter() as EventEmitter & {
     method: string
@@ -45,6 +47,7 @@ const run = async (opts: {
 
   const docs = opts.docs ?? new Map()
   const instance = {
+    documents: opts.loaded ? docs : new Map(),
     openDirectConnection: vi.fn(async (name: string) => {
       if (opts.failOpen) throw new Error('boom')
       if (!docs.has(name)) docs.set(name, new Y.Doc())
@@ -159,6 +162,25 @@ describe('POST /canvas/:id/chat', () => {
     const second = await call()
     expect(second.response.status).toBe(200)
     expect(second.response.body).toEqual({ id: 'a1', created: false })
+    expect(doc.getArray(CANVAS_KEYS.CHAT).length).toBe(1)
+    expect(broadcast).toHaveBeenCalledOnce()
+  })
+
+  it('document déjà chargé : écrit dedans sans connexion directe (pas d écriture S3 forcée)', async () => {
+    const broadcast = vi.fn()
+    const doc = new Y.Doc() as Y.Doc & { broadcastStateless: typeof broadcast }
+    doc.broadcastStateless = broadcast
+    const docs = new Map([[CANVAS, doc]])
+    const { response, instance } = await run({
+      method: 'POST',
+      url: `/canvas/${CANVAS}/chat`,
+      headers,
+      body: message,
+      docs,
+      loaded: true,
+    })
+    expect(response.status).toBe(201)
+    expect(instance.openDirectConnection).not.toHaveBeenCalled()
     expect(doc.getArray(CANVAS_KEYS.CHAT).length).toBe(1)
     expect(broadcast).toHaveBeenCalledOnce()
   })
