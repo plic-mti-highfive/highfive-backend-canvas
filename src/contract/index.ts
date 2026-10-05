@@ -32,6 +32,20 @@ export interface CanvasChatMessage {
   text: string
   authorId: string
   timestamp: number
+  /** Vrai pour une reponse de l'assistant IA injectee par le core. */
+  isAssistant?: boolean
+}
+
+/**
+ * Corps de \`POST /canvas/:canvasId/chat\` (interne, \`X-Internal-Secret\`) : le
+ * core y renvoie la reponse de l'assistant. \`id\` rend l'injection idempotente.
+ */
+export interface CanvasAssistantChatInput {
+  id: string
+  text: string
+  authorId: string
+  timestamp: number
+  isAssistant: true
 }
 
 /** Nature semantique d'un element du Mur, apres traduction des shapes tldraw. */

@@ -138,3 +138,11 @@ Les types echanges avec le core sont declares dans `src/contract/`, a
 l'identique de `core_backend/src/modules/wall/canvas.types.ts`. Le paquet
 `@plic-mti-highfive/shared-types` qui les portait a ete supprime : toute
 modification doit desormais etre faite **dans les deux depots**.
+
+## Reponse de l'assistant IA (interne)
+
+`POST /canvas/:canvasId/chat` — en-tete `X-Internal-Secret`, appele par le core
+seul. Corps : `{ id, text, authorId, timestamp, isAssistant: true }`. Ajoute le
+message au chat du Y.Doc (idempotent sur `id`) et le diffuse aux clients
+connectes (`{ type: 'chat', data }`). 201 cree, 200 deja present, 400 corps
+invalide, 401 secret invalide. Ne publie rien sur la file `canvas_events`.

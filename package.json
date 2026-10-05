@@ -12,7 +12,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "e2e": "node load/e2e.mjs",
+    "load": "node load/load.mjs"
   },
   "keywords": [],
   "author": "",
