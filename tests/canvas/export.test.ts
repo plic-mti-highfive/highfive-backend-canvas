@@ -88,13 +88,23 @@ describe('readCanvasDocument', () => {
     const doc = new Y.Doc()
     const message: CanvasChatMessage = {
       id: 'm1',
-      text: 'On part sur du JWT',
       authorId: 'u1',
-      timestamp: 1,
+      body: 'On part sur du JWT',
+      sentAt: '2026-10-07T08:00:00.000Z',
+      deleted: false,
     }
     doc.getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT).push([message])
 
     expect(readCanvasDocument(doc).chat).toEqual([message])
+  })
+
+  it('lit un ancien message du document (text/timestamp)', () => {
+    const doc = new Y.Doc()
+    doc.getArray(CANVAS_KEYS.CHAT).push([{ id: 'o1', text: 'vieux', authorId: 'u1', timestamp: 1 }])
+
+    expect(readCanvasDocument(doc).chat).toEqual([
+      { id: 'o1', authorId: 'u1', body: 'vieux', sentAt: '1970-01-01T00:00:00.001Z', deleted: false },
+    ])
   })
 
   it('rend un export vide sur un document vierge', () => {

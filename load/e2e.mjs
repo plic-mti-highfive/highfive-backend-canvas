@@ -39,7 +39,7 @@ if (process.env.E2E_LLM_DOWN) {
   await test('un message d erreur français est posté à la place de la réponse, le worker survit', async () => {
     client.send('@ia bonjour')
     const reply = await client.waitFor(isAssistant)
-    assert.match(reply.text, /pas configure|indisponible|Desole/)
+    assert.match(reply.body, /pas configure|indisponible|Desole/)
     client.send('@ia encore')
     await client.waitFor((m) => isAssistant(m) && m.id !== reply.id)
   })
@@ -52,7 +52,7 @@ console.log('chat du Mur -> LLM (fake)')
 
 await test('un message sans @ia est diffusé mais ne déclenche pas l assistant', async () => {
   client.send('bonjour tout le monde')
-  await spectator.waitFor((m) => m.text === 'bonjour tout le monde')
+  await spectator.waitFor((m) => m.body === 'bonjour tout le monde')
   await new Promise((r) => setTimeout(r, 1500))
   assert.equal(client.received.filter(isAssistant).length, 0)
 })
@@ -60,27 +60,27 @@ await test('un message sans @ia est diffusé mais ne déclenche pas l assistant'
 await test('@ia : la réponse de l assistant revient aux clients connectés', async () => {
   client.send('@ia fais un résumé')
   const reply = await spectator.waitFor(isAssistant)
-  assert.match(reply.text, /^\[assistant simule\]/)
+  assert.match(reply.body, /^\[assistant simule\]/)
   assert.equal(reply.canvasId, session.canvasId)
   assert.ok(client.received.some(isAssistant), 'l auteur reçoit aussi la réponse')
 })
 
 await test('contextualisation : l historique (2 messages + la question) arrive au provider', async () => {
   const reply = client.received.find(isAssistant)
-  assert.match(reply.text, /Contexte : 2 message\(s\)/) // 'bonjour…' + '@ia fais…'
-  assert.match(reply.text, /@ia fais un résumé/)
+  assert.match(reply.body, /Contexte : 2 message\(s\)/) // 'bonjour…' + '@ia fais…'
+  assert.match(reply.body, /@ia fais un résumé/)
 })
 
 await test('contextualisation : le tour suivant voit aussi la réponse précédente', async () => {
   client.send('@ia et maintenant ?')
-  const reply = await client.waitFor((m) => isAssistant(m) && /et maintenant/.test(m.text))
-  assert.match(reply.text, /Contexte : 4 message\(s\)/)
+  const reply = await client.waitFor((m) => isAssistant(m) && /et maintenant/.test(m.body))
+  assert.match(reply.body, /Contexte : 4 message\(s\)/)
 })
 
 await test('la réponse est dans le document Yjs et dans l export interne', async () => {
   const exported = await exportWall(session.canvasId)
   assert.equal(exported.status, 200)
-  const texts = exported.body.chat.map((m) => m.text)
+  const texts = exported.body.chat.map((m) => m.body)
   assert.ok(texts.includes('bonjour tout le monde'))
   assert.equal(exported.body.chat.filter(isAssistant).length, 2)
 })
@@ -89,9 +89,10 @@ await test('endpoint interne : 401 sans secret, rejeu idempotent', async () => {
   const url = `${CANVAS_URL}/canvas/${session.canvasId}/chat`
   const body = JSON.stringify({
     id: 'e2e-direct-1',
-    text: 'injecté',
     authorId: '00000000-0000-4000-8000-0000000000a1',
-    timestamp: 1,
+    body: 'injecté',
+    sentAt: new Date().toISOString(),
+    deleted: false,
     isAssistant: true,
   })
   const headers = { 'content-type': 'application/json' }
@@ -103,13 +104,13 @@ await test('endpoint interne : 401 sans secret, rejeu idempotent', async () => {
 })
 
 if (process.env.PG_CONTAINER) {
-  await test('persistance : table wall_chat_messages présente et messages sauvegardés', async () => {
-    assert.equal(sql("select to_regclass('public.wall_chat_messages') is not null"), 't')
-    const rows = sql(`select role, count(*) from wall_chat_messages where project_id = '${wall.projectId}' group by role order by role`)
-    assert.equal(rows, 'assistant|2\nuser|3')
+  const wallMessages = `from messages m join conversations c on c.id = m.conversation_id where c.kind = 'wall' and c.project_id = '${wall.projectId}'`
+  await test('persistance : messages du Mur sauvegardés dans la conversation wall', async () => {
+    const rows = sql(`select (m.author_id = '00000000-0000-4000-8000-0000000000a1') as assistant, count(*) ${wallMessages} group by 1 order by 1`)
+    assert.equal(rows, 'f|3\nt|2')
   })
   await test('persistance : pas de doublon d id', async () => {
-    assert.equal(sql(`select count(*) - count(distinct id) from wall_chat_messages where project_id = '${wall.projectId}'`), '0')
+    assert.equal(sql(`select count(*) - count(distinct m.id) ${wallMessages}`), '0')
   })
 } else {
   console.log('  (PG_CONTAINER absent : vérification en base sautée)')

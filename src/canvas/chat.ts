@@ -4,9 +4,12 @@ import { CANVAS_KEYS, type CanvasAssistantChatInput, type CanvasChatMessage } fr
 
 const assistantChatInputSchema = z.object({
   id: z.string().min(1).max(64),
-  text: z.string().min(1).max(4000),
+  conversationId: z.string().min(1).max(64).optional(),
   authorId: z.string().min(1).max(64),
-  timestamp: z.number().int().nonnegative(),
+  body: z.string().min(1).max(4000),
+  sentAt: z.string().datetime(),
+  editedAt: z.string().datetime().optional(),
+  deleted: z.boolean(),
   isAssistant: z.literal(true),
 })
 
@@ -33,15 +36,34 @@ export const injectAssistantMessage = (
   const chat = document.getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT)
   if (chat.toArray().some((message) => message.id === input.id)) return false
 
-  const message: CanvasChatMessage = {
-    id: input.id,
-    text: input.text,
-    authorId: input.authorId,
-    timestamp: input.timestamp,
-    isAssistant: true,
-  }
+  const message: CanvasChatMessage = { ...input, isAssistant: true }
   chat.push([message])
 
   document.broadcastStateless?.(JSON.stringify({ type: 'chat', data: { ...message, canvasId } }))
   return true
+}
+
+/** Ancienne forme des messages deja stockes dans les Y.Doc (`text`, `timestamp`). */
+interface LegacyChatMessage {
+  id: string
+  text: string
+  authorId: string
+  timestamp: number
+  isAssistant?: boolean
+}
+
+/**
+ * Lit un message du Y.Doc quelle que soit sa forme : les Murs ecrits avant
+ * l'alignement sur le `Message` du contrat portent encore `text`/`timestamp`.
+ */
+export const normalizeChatMessage = (raw: CanvasChatMessage | LegacyChatMessage): CanvasChatMessage => {
+  if ('body' in raw) return raw
+  return {
+    id: raw.id,
+    authorId: raw.authorId,
+    body: raw.text,
+    sentAt: new Date(raw.timestamp).toISOString(),
+    deleted: false,
+    ...(raw.isAssistant ? { isAssistant: true } : {}),
+  }
 }

@@ -88,10 +88,10 @@ describe('canvas — chat par WebSocket (serveur réel, file mockée)', () => {
     a.provider.sendStateless(JSON.stringify({ type: 'chat', text: '@ia résume' }))
     await waitFor(() => a.chats.length > 0 && b.chats.length > 0)
 
-    expect(b.chats[0].data).toMatchObject({ text: '@ia résume', authorId: 'user-editor' })
+    expect(b.chats[0].data).toMatchObject({ body: '@ia résume', authorId: 'user-editor' })
     expect(canvasEventsQueue.add).toHaveBeenCalledWith(
       'canvas_chat_message',
-      expect.objectContaining({ text: '@ia résume', canvasId: CANVAS, authorId: 'user-editor' })
+      expect.objectContaining({ body: '@ia résume', canvasId: CANVAS, authorId: 'user-editor' })
     )
     // On garde `a` connecte : sans stockage (S3), le document disparait avec le dernier client.
     keep.push(a.provider)
@@ -102,9 +102,10 @@ describe('canvas — chat par WebSocket (serveur réel, file mockée)', () => {
     const a = await connect(token())
     const reply = {
       id: 'reply-1',
-      text: 'Voici le résumé',
       authorId: '00000000-0000-4000-8000-0000000000a1',
-      timestamp: Date.now(),
+      body: 'Voici le résumé',
+      sentAt: new Date().toISOString(),
+      deleted: false,
       isAssistant: true,
     }
     const post = () =>
@@ -124,7 +125,7 @@ describe('canvas — chat par WebSocket (serveur réel, file mockée)', () => {
     })
     const body = (await exported.json()) as { chat: CanvasChatMessage[] }
     expect(body.chat.filter((m) => m.id === 'reply-1')).toHaveLength(1)
-    expect(body.chat.some((m) => m.text === '@ia résume')).toBe(true)
+    expect(body.chat.some((m) => m.body === '@ia résume')).toBe(true)
     expect(a.provider.document.getArray(CANVAS_KEYS.CHAT).length).toBeGreaterThanOrEqual(2)
     a.provider.destroy()
   })

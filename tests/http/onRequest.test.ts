@@ -74,9 +74,10 @@ const run = async (opts: {
 
 const message = {
   id: 'a1',
-  text: 'Salut',
   authorId: '00000000-0000-4000-8000-0000000000a1',
-  timestamp: 1,
+  body: 'Salut',
+  sentAt: '2026-10-07T08:00:00.000Z',
+  deleted: false,
   isAssistant: true,
 }
 
@@ -116,7 +117,7 @@ describe('POST /canvas/:id/chat', () => {
       { body: { id: 'x' } },
       { rawBody: '{pas du json' },
       { body: { ...message, isAssistant: false } },
-      { body: { ...message, text: 'x'.repeat(4001) } },
+      { body: { ...message, body: 'x'.repeat(4001) } },
     ]) {
       const { response } = await run({
         method: 'POST',
@@ -217,7 +218,7 @@ describe('GET /canvas/:id/export', () => {
   it('exporte le chat (utilisateur + assistant) avec le secret', async () => {
     const doc = new Y.Doc()
     doc.getArray(CANVAS_KEYS.CHAT).push([
-      { id: 'u1', text: '@ia bonjour', authorId: 'u', timestamp: 1 },
+      { id: 'u1', authorId: 'u', body: '@ia bonjour', sentAt: '2026-10-07T07:59:00.000Z', deleted: false },
       message,
     ])
     const { response } = await run({

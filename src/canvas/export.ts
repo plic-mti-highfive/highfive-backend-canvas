@@ -1,4 +1,5 @@
 import type * as Y from 'yjs'
+import { normalizeChatMessage } from './chat'
 import {
   CANVAS_KEYS,
   type CanvasChatMessage,
@@ -122,7 +123,7 @@ export const readCanvasDocument = (
   doc: Y.Doc,
 ): { elements: CanvasElement[]; chat: CanvasChatMessage[]; drawingCount: number } => {
   const records = [...doc.getMap(CANVAS_KEYS.RECORDS).values()] as TldrawRecord[]
-  const chat = doc.getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT).toArray()
+  const chat = doc.getArray<Parameters<typeof normalizeChatMessage>[0]>(CANVAS_KEYS.CHAT).toArray().map(normalizeChatMessage)
 
   const all = extractElements(records)
   const drawingCount = all.filter((e) => e.kind === 'drawing').length

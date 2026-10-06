@@ -25,7 +25,7 @@ docker run -d --name hf_pg -e POSTGRES_USER=hf -e POSTGRES_PASSWORD=hf -e POSTGR
 docker run -d --name hf_redis -p 127.0.0.1:6391:6379 redis:7-alpine
 docker run -d --name hf_minio -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin -p 127.0.0.1:9071:9000 quay.io/minio/minio server /data
 
-# core (NODE_ENV=development la 1re fois : `synchronize` crée les tables, dont wall_chat_messages)
+# core (NODE_ENV=development la 1re fois : `synchronize` crée les tables, dont conversations et messages)
 cd core_backend && pnpm build
 PORT=3471 NODE_ENV=development DB_HOST=127.0.0.1 DB_PORT=5461 DB_USERNAME=hf DB_PASSWORD=hf DB_DATABASE=highfive \
   REDIS_HOST=127.0.0.1 REDIS_PORT=6391 MINIO_ENDPOINT=http://127.0.0.1:9071 \

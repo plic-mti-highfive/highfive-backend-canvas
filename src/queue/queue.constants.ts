@@ -1,3 +1,5 @@
+import type { CanvasChatJobData } from '../contract'
+
 export const QUEUE_NAMES = {
   CANVAS_EVENTS: 'canvas_events',
 } as const
@@ -7,13 +9,8 @@ export const JOB_TYPES = {
 } as const
 
 /**
- * Message de chat publie sur la file. Plus de `tenantId` : la plateforme est
- * mono-instance depuis la refonte v2 (voir `core_backend/docs/REFACTO-V2.md`).
+ * Message de chat publie sur la file : le `CanvasChatMessage` du contrat plus
+ * le `canvasId`. Plus de `tenantId` : la plateforme est mono-instance depuis la
+ * refonte v2 (voir `core_backend/docs/REFACTO-V2.md`).
  */
-export interface ChatMessageJobData {
-  id: string
-  text: string
-  authorId: string
-  canvasId: string
-  timestamp: number
-}
+export type ChatMessageJobData = CanvasChatJobData

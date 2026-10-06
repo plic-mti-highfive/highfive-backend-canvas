@@ -39,7 +39,7 @@ describe('Hook: onStateless — chat', () => {
     expect(canvasEventsQueue.add).toHaveBeenCalledOnce()
     const [jobType, jobData] = (canvasEventsQueue.add as any).mock.calls[0]
     expect(jobType).toBe('canvas_chat_message')
-    expect(jobData.text).toBe('Hello')
+    expect(jobData.body).toBe('Hello')
     expect(jobData.authorId).toBe('user-1')
     expect(jobData.canvasId).toBe('canvas-abc')
     expect(data.document.broadcastStateless).toHaveBeenCalledOnce()
@@ -52,9 +52,10 @@ describe('Hook: onStateless — chat', () => {
     const broadcast = data.document.broadcastStateless as any
     const broadcastPayload = JSON.parse(broadcast.mock.calls[0][0])
     expect(broadcastPayload.type).toBe('chat')
-    expect(broadcastPayload.data.text).toBe('Bonjour')
+    expect(broadcastPayload.data.body).toBe('Bonjour')
     expect(broadcastPayload.data.id).toBeDefined()
-    expect(broadcastPayload.data.timestamp).toBeTypeOf('number')
+    expect(new Date(broadcastPayload.data.sentAt).toISOString()).toBe(broadcastPayload.data.sentAt)
+    expect(broadcastPayload.data.deleted).toBe(false)
   })
 
   it('ignore un JSON invalide sans lever d\'erreur', async () => {
@@ -79,7 +80,7 @@ describe('Hook: onStateless — chat', () => {
     const data = makePayload(JSON.stringify({ type: 'chat', text: '  Bonjour  ' }))
     await onStateless(data)
     const jobData = (canvasEventsQueue.add as any).mock.calls[0][1]
-    expect(jobData.text).toBe('Bonjour')
+    expect(jobData.body).toBe('Bonjour')
   })
 
   it('persiste le message dans le document, pour survivre a la reconnexion et nourrir l export IA', async () => {
@@ -91,7 +92,8 @@ describe('Hook: onStateless — chat', () => {
       .toArray()
 
     expect(chat).toHaveLength(1)
-    expect(chat[0]).toMatchObject({ text: 'On part sur du JWT', authorId: 'user-1' })
+    expect(chat[0]).toMatchObject({ body: 'On part sur du JWT', authorId: 'user-1', deleted: false })
+    expect(chat[0]).not.toHaveProperty('canvasId')
   })
 
   it('ne persiste rien quand le message est ignore', async () => {

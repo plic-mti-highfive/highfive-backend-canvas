@@ -27,24 +27,41 @@ export interface CanvasTokenPayload {
   role: 'admin' | 'editor' | 'viewer'
 }
 
+/**
+ * Message du chat du Mur : meme forme que le `Message` du contrat de la
+ * messagerie (`id`, `conversationId`, `authorId`, `body`, `sentAt`, `editedAt`,
+ * `deleted`), plus l'indication assistant. Champ optionnel = absent, jamais
+ * `null`. C'est la forme stockee dans le Y.Doc, publiee sur `canvas_events`,
+ * diffusee aux clients et exportee.
+ */
 export interface CanvasChatMessage {
+  /** Identifiant du message ; devient l'id du `MessageEntity` cote core. */
   id: string
-  text: string
+  /** Conversation `wall` du projet, quand on la connait (le core la pose). */
+  conversationId?: string
   authorId: string
-  timestamp: number
+  body: string
+  /** ISO 8601. */
+  sentAt: string
+  editedAt?: string
+  deleted: boolean
   /** Vrai pour une reponse de l'assistant IA injectee par le core. */
   isAssistant?: boolean
 }
 
 /**
- * Corps de \`POST /canvas/:canvasId/chat\` (interne, \`X-Internal-Secret\`) : le
- * core y renvoie la reponse de l'assistant. \`id\` rend l'injection idempotente.
+ * Message de chat publie par le canvas sur la file BullMQ `canvas_events`
+ * (job `canvas_chat_message`). `canvasId` identifie le Mur.
  */
-export interface CanvasAssistantChatInput {
-  id: string
-  text: string
-  authorId: string
-  timestamp: number
+export interface CanvasChatJobData extends CanvasChatMessage {
+  canvasId: string
+}
+
+/**
+ * Corps de `POST /canvas/:canvasId/chat` (interne, `X-Internal-Secret`) : le
+ * core y renvoie la reponse de l'assistant. `id` rend l'injection idempotente.
+ */
+export interface CanvasAssistantChatInput extends CanvasChatMessage {
   isAssistant: true
 }
 

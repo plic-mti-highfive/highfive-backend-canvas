@@ -29,10 +29,11 @@ export const onStateless = async (data: onStatelessPayload) => {
 
   const chatMessage: ChatMessageJobData = {
     id: randomUUID(),
-    text: message.text.trim(),
     authorId: user.userId,
+    body: message.text.trim(),
+    sentAt: new Date().toISOString(),
+    deleted: false,
     canvasId: documentName,
-    timestamp: Date.now(),
   }
 
   await canvasEventsQueue.add(JOB_TYPES.CANVAS_CHAT_MESSAGE, chatMessage)
@@ -41,13 +42,14 @@ export const onStateless = async (data: onStatelessPayload) => {
   // il serait perdu a la reconnexion et absent de l'export envoye a l'IA.
   const persisted: CanvasChatMessage = {
     id: chatMessage.id,
-    text: chatMessage.text,
     authorId: chatMessage.authorId,
-    timestamp: chatMessage.timestamp,
+    body: chatMessage.body,
+    sentAt: chatMessage.sentAt,
+    deleted: chatMessage.deleted,
   }
   document.getArray<CanvasChatMessage>(CANVAS_KEYS.CHAT).push([persisted])
 
   document.broadcastStateless(JSON.stringify({ type: 'chat', data: chatMessage }))
 
-  console.log(`[CHAT] User ${user.userId} → project ${documentName}: "${chatMessage.text}"`)
+  console.log(`[CHAT] User ${user.userId} → project ${documentName}: "${chatMessage.body}"`)
 }
