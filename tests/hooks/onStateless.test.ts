@@ -18,20 +18,32 @@ const mockUser = {
 
 // Un vrai Y.Doc plutot qu'un mock : le hook persiste desormais le chat dans le
 // document (Y.Array), et on veut le verifier pour de bon.
-const makePayload = (payload: string) => {
+const makePayload = (payload: string, user: typeof mockUser = mockUser) => {
   const document = new Y.Doc() as Y.Doc & { broadcastStateless: ReturnType<typeof vi.fn> }
   document.broadcastStateless = vi.fn()
   return {
     payload,
     documentName: 'canvas-abc',
     document: document as any,
-    connection: { context: { user: mockUser } } as any,
+    connection: { context: { user } } as any,
   }
 }
 
 beforeEach(() => vi.clearAllMocks())
 
 describe('Hook: onStateless — chat', () => {
+  it('ignore le message d un viewer : ni file, ni document, ni broadcast', async () => {
+    const data = makePayload(JSON.stringify({ type: 'chat', text: '@ia salut' }), {
+      ...mockUser,
+      role: 'viewer',
+    })
+    await onStateless(data)
+
+    expect(canvasEventsQueue.add).not.toHaveBeenCalled()
+    expect(data.document.getArray(CANVAS_KEYS.CHAT).length).toBe(0)
+    expect(data.document.broadcastStateless).not.toHaveBeenCalled()
+  })
+
   it('enqueue le message et le broadcast à tous les clients', async () => {
     const data = makePayload(JSON.stringify({ type: 'chat', text: 'Hello' }))
     await onStateless(data)

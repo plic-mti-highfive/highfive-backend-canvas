@@ -60,7 +60,7 @@ Légende des statuts : ✅ existant · 🆕 ajouté par T10 · 🐞 défaut conn
 | ID | Scénario | Type | Fichier | Statut |
 | --- | --- | --- | --- | --- |
 | CANVAS-ROLE-01 | Une écriture Yjs d'un viewer n'est pas appliquée au document serveur | Intégration | `tests/security/ws-security.test.ts` | 🆕 |
-| CANVAS-ROLE-02 | Un viewer ne peut pas poster dans le chat (stateless) | Intégration | `tests/security/ws-security.test.ts` | 🐞 |
+| CANVAS-ROLE-02 | Un viewer ne peut pas poster dans le chat (stateless), ni déclencher l'IA | Intégration + unitaire | `tests/security/ws-security.test.ts`, `tests/hooks/onStateless.test.ts` | 🆕 (bug corrigé T10) |
 | CANVAS-ROLE-03 | Un éditeur peut poster dans le chat (stateless) | Intégration | `tests/security/ws-security.test.ts` | 🆕 |
 
 ## Chat du Mur (stateless, file, diffusion)
@@ -162,7 +162,7 @@ Légende des statuts : ✅ existant · 🆕 ajouté par T10 · 🐞 défaut conn
 
 | ID | Description | Statut |
 | --- | --- | --- |
-| CANVAS-ROLE-02 | Un `viewer` peut envoyer un message de chat (et déclencher `@ia`) : la lecture seule d'Hocuspocus ne filtre pas les messages stateless et `onStateless` ne vérifie pas `user.role`. Correctif trivial possible : `if (user.role === 'viewer') return` dans `onStateless` (décision produit à confirmer). | 🐞 `it.fails` |
+| CANVAS-ROLE-02 | Un `viewer` pouvait envoyer un message de chat (et déclencher `@ia`) : la lecture seule d'Hocuspocus ne filtre pas les messages stateless. Corrigé : `onStateless` ignore les messages d'un `viewer` (décision produit : un lecteur n'écrit pas dans le chat). | ✅ corrigé T10 |
 
 ## Couverture
 
@@ -171,7 +171,7 @@ Mesurée avec `vitest run --coverage --coverage.include='src/**'` (tout `src/`).
 | | Tests | Lignes | Branches | Fonctions |
 | --- | --- | --- | --- | --- |
 | Avant T10 | 50 | 82,6 % | 76,7 % | 81,8 % |
-| Après T10 (`vitest run`) | 84 + 1 `it.fails` | 93,0 % | 89,5 % | 88,2 % |
+| Après T10 (`vitest run`) | 86 | 93,0 % | 89,5 % | 88,2 % |
 | + `test:int` | +6 | `storage/bucket.ts` couvert aussi par le MinIO réel | | |
 
 Hors rapport mais exercé : les 6 tests d'intégration MinIO exécutent l'extension S3 réelle de Hocuspocus.
@@ -182,4 +182,3 @@ Hors rapport mais exercé : les 6 tests d'intégration MinIO exécutent l'extens
 - Comparaison du secret interne avec `!==` (non constant-time) : aucun test de timing.
 - Expiration de la connexion au bout d'1 h : testée au niveau du hook (faux timers), pas de fermeture effective de la socket.
 - Débit/charge : `load/` uniquement, non rejoué en CI (pas de job e2e).
-- CANVAS-ROLE-02 à corriger puis passer de `it.fails` à `it`.

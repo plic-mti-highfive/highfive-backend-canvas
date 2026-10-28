@@ -117,10 +117,9 @@ describe('sécurité — lecture seule du viewer', () => {
     expect(serverDoc.getMap(CANVAS_KEYS.RECORDS).has('shape:pirate')).toBe(false)
   })
 
-  // BUG: la lecture seule de Hocuspocus ne couvre que les mises à jour Yjs ; les
-  // messages stateless ne sont pas filtrés et onStateless ne contrôle pas le rôle.
-  // Un viewer peut donc écrire dans le chat du Mur (et déclencher l'assistant IA).
-  it.fails('un viewer ne peut pas poster dans le chat du Mur (stateless)', async () => {
+  // La lecture seule de Hocuspocus ne couvre que les mises à jour Yjs : c'est
+  // onStateless qui refuse le chat d'un viewer (sinon il déclencherait l'IA).
+  it('un viewer ne peut pas poster dans le chat du Mur (stateless)', async () => {
     vi.mocked(canvasEventsQueue.add).mockClear()
     const viewer = await connect(sign('viewer'))
     viewer.provider.sendStateless(JSON.stringify({ type: 'chat', text: 'message de viewer' }))

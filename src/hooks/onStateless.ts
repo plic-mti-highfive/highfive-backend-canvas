@@ -26,6 +26,9 @@ export const onStateless = async (data: onStatelessPayload) => {
   if (message.type !== 'chat' || !message.text?.trim()) return
 
   const user = connection.context.user as CanvasTokenPayload
+  // La lecture seule d'Hocuspocus ne filtre que les mises a jour Yjs, pas les
+  // messages stateless : un lecteur ne doit ni ecrire dans le chat ni solliciter l'IA.
+  if (user.role === 'viewer') return
 
   const chatMessage: ChatMessageJobData = {
     id: randomUUID(),
