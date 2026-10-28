@@ -70,6 +70,36 @@ describe('extractElements', () => {
   })
 })
 
+describe('extractElements — branches complémentaires', () => {
+  it('une shape inconnue portant du texte est remontée comme texte', () => {
+    expect(extractElements([shape('s1', 'frame', { text: ' Cadre ' })])).toEqual([
+      { id: 's1', kind: 'text', text: 'Cadre' },
+    ])
+  })
+
+  it('une shape inconnue sans texte est ignorée', () => {
+    expect(extractElements([shape('s1', 'image')])).toEqual([])
+  })
+
+  it('un tracé au stylo devient un élément drawing sans texte', () => {
+    expect(extractElements([shape('d1', 'draw')])).toEqual([{ id: 'd1', kind: 'drawing', text: '' }])
+  })
+
+  it('une forme sans géo explicite est un rectangle', () => {
+    expect(extractElements([shape('g1', 'geo', { text: 'A' })])[0]).toMatchObject({ kind: 'shape', geo: 'rectangle' })
+  })
+
+  it('un texte libre vide est ignoré', () => {
+    expect(extractElements([shape('t1', 'text', { text: '  ' })])).toEqual([])
+  })
+
+  it('une flèche avec texte mais sans liaison est conservée', () => {
+    expect(extractElements([shape('a1', 'arrow', { text: 'dépend de' })])).toEqual([
+      { id: 'a1', kind: 'arrow', text: 'dépend de', from: undefined, to: undefined },
+    ])
+  })
+})
+
 describe('readCanvasDocument', () => {
   it('compte les traces au stylo sans les lister', () => {
     const doc = new Y.Doc()

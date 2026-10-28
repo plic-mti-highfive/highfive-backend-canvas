@@ -129,6 +129,17 @@ describe('POST /canvas/:id/chat', () => {
     }
   })
 
+  it('refuse un corps de plus de 64 Kio (400) sans toucher au document', async () => {
+    const { response, instance } = await run({
+      method: 'POST',
+      url: `/canvas/${CANVAS}/chat`,
+      headers: { 'x-internal-secret': SECRET },
+      rawBody: 'x'.repeat(70 * 1024),
+    })
+    expect(response.status).toBe(400)
+    expect(instance.openDirectConnection).not.toHaveBeenCalled()
+  })
+
   it('crée le message (201), le diffuse et le range dans le Y.Doc', async () => {
     const broadcast = vi.fn()
     const doc = new Y.Doc() as Y.Doc & { broadcastStateless: typeof broadcast }
