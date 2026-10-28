@@ -8,7 +8,7 @@ declare module 'vitest' {
   }
 }
 
-const IMAGE = process.env.TEST_MINIO_IMAGE ?? 'quay.io/minio/minio'
+const IMAGE = process.env.TEST_MINIO_IMAGE ?? 'cgr.dev/chainguard/minio:latest'
 
 const docker = (...args: string[]): string =>
   execFileSync('docker', args, { encoding: 'utf8' }).trim()

@@ -22,7 +22,7 @@
 
 ### Stratégie MinIO jetable
 
-`tests/minio/global-setup.ts` démarre `docker run -d --rm --tmpfs /data -p 127.0.0.1::9000 --name hf-canvas-test-<aléatoire> quay.io/minio/minio server /data`
+`tests/minio/global-setup.ts` démarre `docker run -d --rm --tmpfs /data -p 127.0.0.1::9000 --name hf-canvas-test-<aléatoire> cgr.dev/chainguard/minio:latest server /data`
 (port hôte aléatoire, données en tmpfs, image surchargeable par `TEST_MINIO_IMAGE`), attend `/minio/health/live`, puis fournit l'endpoint aux tests
 (`inject('s3Endpoint')` -> `MINIO_ENDPOINT` dans `tests/minio/setup-env.ts`). Le teardown du globalSetup fait `docker rm -f` même si des tests échouent ;
 le conteneur étant `--rm`, `docker ps -a | grep hf-canvas-test` est vide après. Chaque exécution utilise un bucket aléatoire.

@@ -58,7 +58,7 @@ jobs:
         run: |
           docker run -d --rm --tmpfs /data -p 127.0.0.1:9000:9000 --name hf-canvas-test-ci \
             -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio server /data
+            cgr.dev/chainguard/minio:latest server /data
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:9000/minio/health/live && exit 0
             sleep 1

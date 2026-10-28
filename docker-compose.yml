@@ -1,6 +1,6 @@
 services:
   minio:
-    image: quay.io/minio/minio
+    image: cgr.dev/chainguard/minio:latest
     container_name: highfive_minio
     restart: unless-stopped
     ports:

@@ -23,7 +23,7 @@ décalés pour ne pas gêner une autre stack) :
 ```bash
 docker run -d --name hf_pg -e POSTGRES_USER=hf -e POSTGRES_PASSWORD=hf -e POSTGRES_DB=highfive -p 127.0.0.1:5461:5432 postgres:16-alpine
 docker run -d --name hf_redis -p 127.0.0.1:6391:6379 redis:7-alpine
-docker run -d --name hf_minio -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin -p 127.0.0.1:9071:9000 quay.io/minio/minio server /data
+docker run -d --name hf_minio -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin -p 127.0.0.1:9071:9000 cgr.dev/chainguard/minio:latest server /data
 
 # core (NODE_ENV=development la 1re fois : `synchronize` crée les tables, dont conversations et messages)
 cd core_backend && pnpm build
