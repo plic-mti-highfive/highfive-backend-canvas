@@ -14,7 +14,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "e2e": "node load/e2e.mjs",
-    "load": "node load/load.mjs"
+    "load": "node load/load.mjs",
+    "test:int": "vitest run --config vitest.integration.config.ts"
   },
   "keywords": [],
   "author": "",
