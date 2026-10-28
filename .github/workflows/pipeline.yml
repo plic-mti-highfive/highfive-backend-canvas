@@ -44,11 +44,35 @@ jobs:
       - name: Run linter
         run: pnpm lint
 
+      - name: Type-check (tsc)
+        run: pnpm exec tsc --noEmit
+
       - name: Run tests and generate JUnit report
         run: pnpm exec vitest run --reporter=default --reporter=junit --outputFile=junit.xml
         env:
           ENV: dev
           JWT_SECRET: secret-de-test
+
+      # MinIO jetable : un service GitHub ne peut pas recevoir `server /data`.
+      - name: Start MinIO
+        run: |
+          docker run -d --rm --tmpfs /data -p 127.0.0.1:9000:9000 --name hf-canvas-test-ci \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+            quay.io/minio/minio server /data
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:9000/minio/health/live && exit 0
+            sleep 1
+          done
+          echo "MinIO injoignable" && docker logs hf-canvas-test-ci && exit 1
+
+      - name: Run integration tests (MinIO)
+        run: pnpm test:int
+        env:
+          TEST_S3_ENDPOINT: http://127.0.0.1:9000
+
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f hf-canvas-test-ci || true
 
       - name: Publish Test Report
         uses: dorny/test-reporter@v1
