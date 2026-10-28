@@ -1,7 +1,7 @@
 import { Server } from '@hocuspocus/server'
 import { Logger } from '@hocuspocus/extension-logger'
 import { S3 } from '@hocuspocus/extension-s3'
-import { s3Config } from './index'
+import { s3Config } from './storage/config'
 import { env } from './env'
 import * as hooks from './hooks'
 import { onRequest } from './http/onRequest'

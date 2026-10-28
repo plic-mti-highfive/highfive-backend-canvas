@@ -1,6 +1,6 @@
 import { S3Client, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3'
 import { env } from '../env'
-import { s3Config } from '../index'
+import { s3Config } from './config'
 
 export async function ensureBucketExists() {
   const s3Client = new S3Client(s3Config)

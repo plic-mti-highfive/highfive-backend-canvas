@@ -1,28 +1,13 @@
-import { S3 } from '@hocuspocus/extension-s3'
+import { s3Config } from './storage/config'
 import { env } from './env'
 import { startServer } from './server'
 import { ensureBucketExists } from './storage/bucket'
 import { closeQueue } from './queue'
 
-export let s3Config: ConstructorParameters<typeof S3>[0]
+export { s3Config }
 
-if (env.ENV === 'dev') {
-  console.log('[SERVER] Development mode')
-  s3Config = {
-    bucket: env.BUCKET_NAME,
-    endpoint: env.MINIO_ENDPOINT,
-    credentials: {
-      accessKeyId: env.MINIO_USERNAME,
-      secretAccessKey: env.MINIO_PASSWORD,
-    },
-    forcePathStyle: true,
-  }
-} else {
-  console.log('[SERVER] Production mode')
-  s3Config = {
-    bucket: env.BUCKET_NAME,
-  }
-}
+if (env.ENV === 'dev') console.log('[SERVER] Development mode')
+else console.log('[SERVER] Production mode')
 
 async function start() {
   await ensureBucketExists()
